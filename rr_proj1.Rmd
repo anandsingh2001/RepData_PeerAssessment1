@@ -1,0 +1,109 @@
+---
+title: "rr_proj1"
+author: "Anand Singh"
+date: "September 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading and preprocessing the data
+
+Unzip and read the csv data file
+```{r}
+unzip("activity.zip",exdir = "data")
+activity <- read.csv("data/activity.csv", stringsAsFactors=FALSE)
+head(activity)
+```
+
+Show summary statistics
+```{r}
+summary(activity)
+str(activity)
+activity$date<- as.Date(activity$date)
+```
+
+
+## What is mean total number of steps taken per day?
+Calculate the total number of steps taken per day after removing NAs
+
+```{r}
+library(plyr)
+library(dplyr)
+totalsteps <- aggregate(steps ~ date, activity, sum, na.rm = TRUE)
+totalsteps
+```
+Plot Histogram to show mean activity per day
+```{r}
+hist(totalsteps$steps, col = "blue", main = "Mean Activity per day")
+```
+
+Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+mean(totalsteps$steps)
+median(totalsteps$steps)
+```
+
+## What is the average daily activity pattern?
+Aggregate steps by interval
+```{r}
+interval <- aggregate(steps ~ interval, activity, mean, na.rm = TRUE)
+head(interval)
+```
+
+Plot Histogram to show average daily steps
+```{r}
+plot(interval$steps~ interval$interval, type = "l", col = "blue", main = "Average Daily Steps")
+```
+
+## Imputing missing values
+Find out total number and percentage of missing values
+```{r}
+num_na <- sum(is.na(activity$steps))
+num_na
+pct_na <- round(mean(is.na(activity$steps))*100,1)
+pct_na
+```
+
+Substitute missing values with average interval values
+```{r}
+activity2<- activity
+nas<- is.na(activity2$steps)
+avg_interval<- tapply(activity2$steps, activity2$interval, mean, na.rm=TRUE, simplify = TRUE)
+activity2$steps[nas] <- avg_interval[as.character(activity2$interval[nas])]
+sum(is.na(activity2))
+head(activity2)
+```
+Plot Histogram to show all data including missing values
+```{r}
+totalsteps2 <- aggregate(steps ~ date, activity2, sum, na.rm = TRUE)
+totalsteps2
+hist(totalsteps2$steps, col = "blue", main = "Daily Steps including Missing Values")
+```
+
+Calculate and report the mean and median of the total number of steps taken per day again
+```{r}
+mean(totalsteps2$steps)
+median(totalsteps2$steps)
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Introduce new column to categorize the type of day (weekday or weekend). Summarize steps based on interval and day type
+```{r}
+activity2<- activity2%>%
+        mutate(daytype= ifelse(weekdays(activity$date)=="Saturday" | weekdays(activity2$date)=="Sunday", "Weekend", "Weekday"))
+#avg_interval2<- tapply(activity2$steps, activity2$interval+activity2$weektype, mean, na.rm=TRUE, simplify = TRUE)
+interval2 <- ddply(activity2, .(interval, daytype), summarize, Avg = mean(steps))
+```
+Plot panel plot to show difference between weekday and weekend
+```{r}
+library(lattice)
+xyplot(Avg~interval|daytype, data=interval2, type="l",  layout = c(1,2),
+       main="Average Steps per Interval Based on Type of Day", 
+       ylab="Average Number of Steps", xlab="Interval")
+```
+
+This tells us that the activity pattern for weekdays and weekends are different
